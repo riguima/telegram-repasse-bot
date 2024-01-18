@@ -2,4 +2,6 @@ from pathlib import Path
 
 import toml
 
-config = toml.load(open(Path('.config.toml').absolute()))
+
+def get_config():
+    return toml.load(open(Path('.config.toml').absolute()))

@@ -8,6 +8,7 @@ pytelegrambotapi = "*"
 toml = "*"
 sqlalchemy = "*"
 aiohttp = "*"
+telethon = "*"
 
 [dev-packages]
 blue = "*"

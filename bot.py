@@ -1,19 +1,32 @@
+from pathlib import Path
+
+import toml
 from sqlalchemy import select
 from telebot import TeleBot
 from telebot.util import quick_markup
 
-from telegram_repasse_bot.config import config
+from telegram_repasse_bot.config import get_config
 from telegram_repasse_bot.database import Session
 from telegram_repasse_bot.models import Forward
 
-bot = TeleBot(config['bot_token'])
+bot = TeleBot(get_config()['bot_token'])
 
 from_chat = None
 
 
+@bot.message_handler(commands=['parar_ids'])
+def stop_show_ids(message):
+    config = get_config()
+    if config['listen_ids']:
+        config['listen_ids'] = False
+        toml.dump(config, open(Path('.config.toml').absolute(), 'w'))
+        bot.send_message(message.chat.id, 'Parou de mostrar IDs')
+        start(message)
+
+
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
-    if message.chat.username == config['username']:
+    if message.chat.username == get_config()['username']:
         bot.send_message(
             message.chat.id,
             'Escolha uma opção:',
@@ -22,6 +35,9 @@ def start(message):
                     'Adicionar Repasse': {'callback_data': 'add_forward'},
                     'Remover Repasse': {'callback_data': 'remove_forward'},
                     'Listar Repasse': {'callback_data': 'show_forwards'},
+                    'Mostrar IDs dos grupos/canais': {
+                        'callback_data': 'listen_ids'
+                    },
                 }
             ),
         )
@@ -31,7 +47,7 @@ def start(message):
 def add_forward(callback_query):
     bot.send_message(
         callback_query.message.chat.id,
-        'Digite o ID/Título do grupo ou canal que vai pegar as mensagens:',
+        'Digite o ID do grupo ou canal que vai pegar as mensagens:',
     )
     bot.register_next_step_handler(callback_query.message, on_from_chat)
 
@@ -41,7 +57,7 @@ def on_from_chat(message):
     from_chat = message.text
     bot.send_message(
         message.chat.id,
-        'Digite o ID/Título do grupo ou canal onde vai ser repassado as mensagens:',
+        'Digite o ID do grupo ou canal onde vai ser repassado as mensagens:',
     )
     bot.register_next_step_handler(message, on_to_chat)
 
@@ -95,6 +111,17 @@ def show_forwards(callback_query):
         reply_markup=quick_markup(reply_markup),
     )
     start(callback_query.message)
+
+
+@bot.callback_query_handler(func=lambda c: c.data == 'listen_ids')
+def start_listen_ids(callback_query):
+    bot.send_message(
+        callback_query.message.chat.id,
+        'Começou a mostrar IDs de grupos e canais, para parar digite /parar_ids',
+    )
+    config = get_config()
+    config['listen_ids'] = True
+    toml.dump(config, open(Path('.config.toml').absolute(), 'w'))
 
 
 if __name__ == '__main__':

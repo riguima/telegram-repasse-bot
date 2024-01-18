@@ -14,4 +14,12 @@ class Forward(Base):
     to_chat: Mapped[str]
 
 
+class Message(Base):
+    __tablename__ = 'messages'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    from_message: Mapped[str]
+    to_message: Mapped[str]
+    to_chat: Mapped[str]
+
+
 Base.metadata.create_all(db)
