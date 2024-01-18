@@ -25,9 +25,19 @@ async def forward_message(event):
     with Session() as session:
         for forward in session.scalars(select(Forward)).all():
             if forward.from_chat == str(event.chat.id):
-                message = await client.send_message(
-                    int(forward.to_chat), event.message
-                )
+                if event.message.reply_to:
+                    with Session() as session:
+                        query = select(Message).where(
+                            Message.from_message == str(event.message.reply_to.reply_to_msg_id)
+                        )
+                        replied_message = session.scalars(query).first()
+                        message = await client.send_message(
+                            int(forward.to_chat), event.message, reply_to=int(replied_message.to_message)
+                        )
+                else:
+                    message = await client.send_message(
+                        int(forward.to_chat), event.message
+                    )
                 session.add(
                     Message(
                         from_message=str(event.message.id),
