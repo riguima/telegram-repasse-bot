@@ -22,4 +22,10 @@ class Message(Base):
     to_chat: Mapped[str]
 
 
+class KeyWord(Base):
+    __tablename__ = 'keywords'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    value: Mapped[str]
+
+
 Base.metadata.create_all(db)

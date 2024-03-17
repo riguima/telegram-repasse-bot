@@ -7,7 +7,7 @@ from telethon.errors.rpcerrorlist import ChatForwardsRestrictedError
 from bot import bot
 from telegram_repasse_bot.config import get_config
 from telegram_repasse_bot.database import Session
-from telegram_repasse_bot.models import Forward, Message
+from telegram_repasse_bot.models import Forward, KeyWord, Message
 
 client = TelegramClient(
     'anon', get_config()['api_id'], get_config()['api_hash']
@@ -26,22 +26,31 @@ async def forward_message(event):
     except AttributeError:
         pass
     with Session() as session:
+        for keyword in session.scalars(select(KeyWord)).all():
+            if keyword.value in event.raw_text:
+                return
         for forward in session.scalars(select(Forward)).all():
             if forward.from_chat == str(event.chat.id):
                 if event.message.reply_to:
                     with Session() as session:
                         query = select(Message).where(
-                            Message.from_message == str(event.message.reply_to.reply_to_msg_id)
+                            Message.from_message
+                            == str(event.message.reply_to.reply_to_msg_id)
                         )
                         replied_message = session.scalars(query).first()
                         try:
                             message = await client.send_message(
-                                int(forward.to_chat), event.message, reply_to=int(replied_message.to_message)
+                                int(forward.to_chat),
+                                event.message,
+                                reply_to=int(replied_message.to_message),
                             )
                         except ChatForwardsRestrictedError:
                             path = await event.message.download_media()
                             message = await client.send_file(
-                                int(forward.to_chat), path, caption=event.message.text, reply_to=int(replied_message.to_message)
+                                int(forward.to_chat),
+                                path,
+                                caption=event.message.text,
+                                reply_to=int(replied_message.to_message),
                             )
                             os.remove(path)
                 else:
@@ -52,7 +61,9 @@ async def forward_message(event):
                     except ChatForwardsRestrictedError:
                         path = await event.message.download_media()
                         message = await client.send_file(
-                            int(forward.to_chat), path, caption=event.message.text
+                            int(forward.to_chat),
+                            path,
+                            caption=event.message.text,
                         )
                         os.remove(path)
                 session.add(

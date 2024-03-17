@@ -7,7 +7,7 @@ from telebot.util import quick_markup
 
 from telegram_repasse_bot.config import get_config
 from telegram_repasse_bot.database import Session
-from telegram_repasse_bot.models import Forward
+from telegram_repasse_bot.models import Forward, KeyWord
 
 bot = TeleBot(get_config()['bot_token'])
 
@@ -35,6 +35,15 @@ def start(message):
                     'Adicionar Repasse': {'callback_data': 'add_forward'},
                     'Remover Repasse': {'callback_data': 'remove_forward'},
                     'Listar Repasse': {'callback_data': 'show_forwards'},
+                    'Adicionar Palavra Chave': {
+                        'callback_data': 'add_keyword'
+                    },
+                    'Remover Palavra Chave': {
+                        'callback_data': 'remove_keyword'
+                    },
+                    'Listar Palavras Chave': {
+                        'callback_data': 'show_keywords'
+                    },
                     'Mostrar IDs dos grupos/canais': {
                         'callback_data': 'listen_ids'
                     },
@@ -108,6 +117,62 @@ def show_forwards(callback_query):
     bot.send_message(
         callback_query.message.chat.id,
         'Lista de Repasses',
+        reply_markup=quick_markup(reply_markup),
+    )
+    start(callback_query.message)
+
+
+@bot.callback_query_handler(func=lambda c: c.data == 'add_keyword')
+def add_keyword(callback_query):
+    bot.send_message(callback_query.message.chat.id, 'Digite a Palavra Chave:')
+    bot.register_next_step_handler(callback_query.message, on_keyword)
+
+
+def on_keyword(message):
+    with Session() as session:
+        session.add(KeyWord(value=from_chat))
+        session.commit()
+    bot.send_message(message.chat.id, 'Palavra Chave Adicionada')
+    start(message)
+
+
+@bot.callback_query_handler(func=lambda c: c.data == 'remove_keyword')
+def remove_keyword(callback_query):
+    reply_markup = {}
+    with Session() as session:
+        for keyword in session.scalars(select(KeyWord)).all():
+            reply_markup[keyword.value] = {
+                'callback_data': f'remove_keyword:{keyword.id}'
+            }
+    bot.send_message(
+        callback_query.message.chat.id,
+        'Escolha uma Palavra Chave para ser removida:',
+        reply_markup=quick_markup(reply_markup),
+    )
+
+
+@bot.callback_query_handler(func=lambda c: 'remove_keyword:' in c.data)
+def remove_keyword_action(callback_query):
+    keyword_id = int(callback_query.data.split(':')[-1])
+    with Session() as session:
+        keyword = session.get(KeyWord, keyword_id)
+        session.delete(keyword)
+        session.commit()
+    bot.send_message(callback_query.message.chat.id, 'Palavra Chave Removida')
+    start(callback_query.message)
+
+
+@bot.callback_query_handler(func=lambda c: c.data == 'show_keywords')
+def show_keywords(callback_query):
+    reply_markup = {}
+    with Session() as session:
+        for keyword in session.scalars(select(KeyWord)).all():
+            reply_markup[keyword.value] = {
+                'callback_data': f'show_keywords:{keyword.id}'
+            }
+    bot.send_message(
+        callback_query.message.chat.id,
+        'Lista de Palavras Chave',
         reply_markup=quick_markup(reply_markup),
     )
     start(callback_query.message)
