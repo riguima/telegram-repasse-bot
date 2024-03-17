@@ -1,5 +1,8 @@
+import os
+
 from sqlalchemy import select
 from telethon import TelegramClient, events
+from telethon.errors.rpcerrorlist import ChatForwardsRestrictedError
 
 from bot import bot
 from telegram_repasse_bot.config import get_config
@@ -31,13 +34,27 @@ async def forward_message(event):
                             Message.from_message == str(event.message.reply_to.reply_to_msg_id)
                         )
                         replied_message = session.scalars(query).first()
-                        message = await client.send_message(
-                            int(forward.to_chat), event.message, reply_to=int(replied_message.to_message)
-                        )
+                        try:
+                            message = await client.send_message(
+                                int(forward.to_chat), event.message, reply_to=int(replied_message.to_message)
+                            )
+                        except ChatForwardsRestrictedError:
+                            path = await event.message.download_media()
+                            message = await client.send_file(
+                                int(forward.to_chat), path, caption=event.message.text, reply_to=int(replied_message.to_message)
+                            )
+                            os.remove(path)
                 else:
-                    message = await client.send_message(
-                        int(forward.to_chat), event.message
-                    )
+                    try:
+                        message = await client.send_message(
+                            int(forward.to_chat), event.message
+                        )
+                    except ChatForwardsRestrictedError:
+                        path = await event.message.download_media()
+                        message = await client.send_file(
+                            int(forward.to_chat), path, caption=event.message.text
+                        )
+                        os.remove(path)
                 session.add(
                     Message(
                         from_message=str(event.message.id),
