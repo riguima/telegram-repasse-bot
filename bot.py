@@ -130,7 +130,7 @@ def add_keyword(callback_query):
 
 def on_keyword(message):
     with Session() as session:
-        session.add(KeyWord(value=from_chat))
+        session.add(KeyWord(value=message.text))
         session.commit()
     bot.send_message(message.chat.id, 'Palavra Chave Adicionada')
     start(message)

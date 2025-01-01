@@ -27,7 +27,7 @@ async def forward_message(event):
         pass
     with Session() as session:
         for keyword in session.scalars(select(KeyWord)).all():
-            if keyword.value in event.raw_text:
+            if keyword.value.lower() in event.raw_text.lower():
                 return
         for forward in session.scalars(select(Forward)).all():
             if forward.from_chat == str(event.chat.id):
